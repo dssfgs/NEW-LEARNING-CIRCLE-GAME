@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>雙骰疊塔：哪座塔最高？</title>
+  <style>
+    :root {
+      --navy: #173f5f;
+      --blue: #277da1;
+      --gold: #f2b84b;
+      --green: #26845b;
+      --red: #b23a48;
+      --pale: #edf6fa;
+      --ink: #17202a;
+      --muted: #52636d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f7f9;
+      color: var(--ink);
+      font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+      line-height: 1.6;
+    }
+    .wrap { max-width: 860px; margin: auto; padding: 18px; }
+    .hero {
+      padding: 24px 26px;
+      border-radius: 18px;
+      background: linear-gradient(120deg, var(--navy), var(--blue));
+      color: #fff;
+    }
+    .hero h1 { margin: 0 0 6px; font-size: 1.7rem; }
+    .hero p { margin: 0; }
+    .card {
+      background: #fff;
+      padding: 22px 24px;
+      margin-top: 15px;
+      border-radius: 15px;
+      box-shadow: 0 4px 16px #17324d18;
+    }
+    .step { display: none; }
+    .step.active { display: block; }
+    .progress {
+      height: 11px; margin: 17px 0 7px; overflow: hidden;
+      background: #dce7ec; border-radius: 99px;
+    }
+    .progress div { width: 20%; height: 100%; background: var(--gold); transition: width .25s; }
+    .pt { color: var(--navy); font-weight: 800; }
+    h2 { margin-top: 0; color: var(--navy); font-size: 1.35rem; }
+    h3 { margin: 18px 0 6px; color: var(--navy); font-size: 1.05rem; }
+    label { display: block; margin-top: 12px; font-weight: 750; }
+    input, select, textarea {
+      width: 100%; padding: 10px; border: 2px solid #abbcc5;
+      border-radius: 9px; font: inherit; background: #fff;
+    }
+    input:disabled, select:disabled { color: var(--muted); background: #e9eef1; cursor: not-allowed; }
+    textarea { min-height: 80px; resize: vertical; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .grid3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 13px; }
+    .tip {
+      padding: 10px 14px; background: #fff4d8;
+      border-left: 5px solid var(--gold); border-radius: 7px; margin: 12px 0;
+    }
+    .howto {
+      padding: 12px 16px; background: var(--pale);
+      border-left: 5px solid var(--blue); border-radius: 7px; margin: 0 0 14px;
+    }
+    .howto ol { margin: 6px 0 0; padding-left: 22px; }
+    .howto li { margin: 3px 0; }
+    .ws {
+      padding: 12px 16px; margin: 14px 0;
+      background: #e6f5ed; border: 2px dashed var(--green); border-radius: 10px;
+    }
+    .ws strong { color: var(--green); }
+    .ws table { margin-top: 8px; }
+    .ws td, .ws th { border-color: #9fcdb5; }
+    .actions { display: flex; justify-content: space-between; gap: 9px; margin-top: 20px; }
+    button {
+      padding: 11px 16px; border: 0; border-radius: 9px;
+      background: var(--blue); color: #fff; font: inherit; font-weight: 800; cursor: pointer;
+    }
+    button.secondary { background: #687985; }
+    button.green { background: var(--green); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* 骰子 */
+    .dice { display: flex; justify-content: center; gap: 12px; margin: 14px 0 6px; }
+    .die {
+      display: grid; place-items: center; width: 62px; height: 62px;
+      border: 3px solid var(--navy); border-radius: 13px; font-size: 1.8rem; font-weight: 900; background: #fff;
+    }
+    .plus { align-self: center; font-size: 1.6rem; font-weight: 900; color: var(--navy); }
+    .sumbox {
+      align-self: center; min-width: 62px; height: 62px; display: grid; place-items: center;
+      border-radius: 13px; background: var(--gold); font-size: 1.8rem; font-weight: 900; padding: 0 10px;
+    }
+    .status { color: var(--green); text-align: center; font-weight: 800; min-height: 1.5em; margin: 6px 0; }
+
+    /* 規則例子 */
+    .example {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      margin-top: 10px; padding: 8px 12px; background: #fff; border-radius: 9px; border: 1px dashed #9db9c8;
+    }
+    .ex-label { font-weight: 800; color: var(--blue); margin-right: 4px; }
+    .die.face.mini { width: 40px; height: 40px; padding: 5px; border-width: 2px; border-radius: 9px; }
+    .die.face.mini i { width: 7px; height: 7px; }
+    .ex-op { font-weight: 900; font-size: 1.2rem; color: var(--navy); }
+    .ex-sum {
+      display: inline-grid; place-items: center; min-width: 36px; height: 36px; padding: 0 8px;
+      border-radius: 8px; background: var(--gold); font-weight: 900; font-size: 1.2rem;
+    }
+    .ex-arrow { font-size: 1.3rem; color: var(--muted); }
+
+    /* 骰子點面 */
+    .die.face { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); padding: 8px; gap: 2px; }
+    .die.face i { display: block; width: 10px; height: 10px; margin: auto; border-radius: 50%; background: var(--navy); visibility: hidden; }
+    .die.face i.on { visibility: visible; }
+    .die.face.rolling { animation: shake .35s ease-in-out; }
+    @keyframes shake {
+      0% { transform: rotate(0); } 25% { transform: rotate(-14deg); }
+      50% { transform: rotate(12deg); } 75% { transform: rotate(-6deg); } 100% { transform: rotate(0); }
+    }
+
+    /* 試玩：一格一塊的積木塔 */
+    .demo { padding: 14px 16px 10px; background: #f7f9fa; border: 1px solid #d9e3e8; border-radius: 12px; }
+    .blocks {
+      display: flex; align-items: flex-end; gap: 6px; height: 196px;
+      padding: 0 4px; border-bottom: 3px solid #72838c; margin-top: 8px;
+    }
+    .blocks .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; height: 100%; }
+    .blocks .col .cnt { font-size: .74rem; font-weight: 800; color: var(--muted); min-height: 1.3em; line-height: 1.3; }
+    .blocks .blk {
+      width: 100%; max-width: 44px; height: 14px; border-radius: 3px;
+      background: var(--blue); border: 1px solid #ffffffaa; box-shadow: inset 0 -2px 0 #0003;
+      animation: drop .3s ease-out;
+    }
+    .blocks .blk.new { background: var(--gold); }
+    @keyframes drop { from { transform: translateY(-40px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .demo-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+
+    /* 塔形圖 */
+    .towers {
+      display: flex; align-items: flex-end; gap: 6px; height: 230px;
+      padding: 6px 4px 0; border-bottom: 3px solid #72838c; margin-top: 10px;
+    }
+    .tower { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+    .tower .val { font-size: .74rem; font-weight: 800; color: var(--muted); min-height: 1.3em; line-height: 1.3; }
+    .tower .stack {
+      width: 100%; min-height: 2px; border-radius: 4px 4px 0 0;
+      background: var(--blue);
+      background-image: repeating-linear-gradient(to top, transparent 0, transparent 7px, #ffffff66 7px, #ffffff66 9px);
+      transition: height .25s ease-out;
+    }
+    .tower.guess .stack { background-color: var(--green); }
+    .tower.top .stack { outline: 3px solid var(--gold); outline-offset: -3px; }
+    .labels { display: flex; gap: 6px; padding: 4px 4px 0; }
+    .labels div { flex: 1; text-align: center; font-weight: 800; font-size: .9rem; }
+    .labels div.guess { color: var(--green); }
+    .legend { color: var(--muted); font-size: .88rem; margin: 6px 0 0; }
+    .legend span { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+
+    .table-wrap { overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 7px 5px; border: 1px solid #b8c6cd; text-align: center; }
+    th { background: var(--navy); color: #fff; font-weight: 700; }
+    td.high { background: #ffe3a0; font-weight: 900; }
+    td.guessed { outline: 3px solid var(--green); outline-offset: -3px; }
+
+    .mini-wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 10px; }
+    .mini { background: #f7f9fa; border: 1px solid #d9e3e8; border-radius: 10px; padding: 10px; }
+    .mini h4 { margin: 0 0 6px; font-size: .95rem; color: var(--navy); }
+    .mini .towers { height: 110px; gap: 3px; border-bottom-width: 2px; }
+    .mini .tower .val { display: none; }
+    .mini .labels div { font-size: .68rem; }
+
+    .error { min-height: 1.5em; color: var(--red); font-weight: 800; margin-top: 8px; }
+    .success { padding: 14px; background: #e6f5ed; border: 2px solid var(--green); border-radius: 10px; font-weight: 700; }
+    .small { color: var(--muted); font-size: .9rem; }
+    details { margin-top: 15px; }
+    summary { cursor: pointer; }
+    code { word-break: break-all; }
+    .starter { color: var(--muted); font-size: .9rem; margin: 4px 0 0; }
+
+    @media (max-width: 600px) {
+      .grid2, .grid3 { grid-template-columns: 1fr; }
+      .actions { flex-direction: column-reverse; }
+      .actions button { width: 100%; }
+      .card { padding: 17px; }
+      th, td { padding: 5px 2px; font-size: .78rem; }
+      .towers { height: 190px; gap: 3px; }
+      .blocks { gap: 3px; height: 170px; }
+      .blocks .blk { height: 11px; }
+      .labels div { font-size: .75rem; }
+    }
+    @media print {
+      body { background: #fff; }
+      .actions, details, .progress { display: none; }
+      .step { display: block !important; page-break-inside: avoid; }
+      .card { box-shadow: none; border: 1px solid #ccc; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <header class="hero">
+      <h1>雙骰疊塔：哪座塔最高？</h1>
+      <p>擲兩粒骰子，把點數相加。總和是幾多，就在幾號塔放一塊積木。
+        比較不同的模擬次數，看看哪座塔最高，以及結果是否穩定。</p>
+    </header>
+
+    <div class="progress"><div id="bar"></div></div>
+    <div class="pt" id="pt">步驟 1／5：規則、試玩與猜想</div>
+
+    <!-- 步驟一 -->
+    <section class="card step active" data-s="1">
+      <h2>步驟 1：遊戲規則、試玩與猜想</h2>
+
+      <h3>一、遊戲規則</h3>
+      <div class="howto">
+        <ol>
+          <li>每局擲<strong>兩粒</strong>公平骰子，把兩個點數<strong>相加</strong>。總和一定是 2 至 12 的其中一個數。</li>
+          <li>地上有 11 座塔，編號 2 至 12。總和是幾多，就在<strong>幾號塔</strong>放上一塊積木。</li>
+          <li>重複擲很多局之後，比較 11 座塔的高度：<strong>最高的塔</strong>，就是出現次數最多的總和。</li>
+        </ol>
+        <div class="example">
+          <span class="ex-label">例子</span>
+          <span class="die face mini" id="ex1"></span><span class="ex-op">+</span><span class="die face mini" id="ex2"></span>
+          <span class="ex-op">=</span><span class="ex-sum">8</span>
+          <span class="ex-arrow">→</span>
+          <span class="ex-text">在 <strong>8 號塔</strong>放一塊積木</span>
+        </div>
+      </div>
+
+      <h3>二、試玩一下（熱身，不會記錄）</h3>
+      <p class="small">按「擲骰子」幾次，看看積木怎樣疊上塔。可以先擲 10 局左右，再往下填寫你的猜想。</p>
+      <div class="demo">
+        <div class="dice demo-dice">
+          <div class="die face" id="pd1"></div>
+          <div class="plus">+</div>
+          <div class="die face" id="pd2"></div>
+          <div class="plus">=</div>
+          <div class="sumbox" id="pdsum">?</div>
+        </div>
+        <p class="status" id="pstatus">還未擲骰，按下面的按鈕開始。</p>
+        <div class="blocks" id="pBlocks"></div>
+        <div class="labels" id="pLabels"></div>
+        <p class="legend"><span style="background:var(--gold)"></span>最新放上的積木　<span style="background:var(--blue)"></span>之前放上的積木</p>
+        <div class="demo-actions">
+          <button type="button" id="pRoll" onclick="practiceRoll()">擲骰子</button>
+          <button type="button" class="secondary" onclick="practiceAuto()" id="pAuto">自動擲 10 局</button>
+          <button type="button" class="secondary" onclick="practiceReset()">重設</button>
+        </div>
+        <p class="small" id="pHint"></p>
+      </div>
+
+      <h3>三、基本資料</h3>
+      <div class="grid3">
+        <div>
+          <label for="student">姓名</label>
+          <input id="student" autocomplete="name" placeholder="請輸入姓名">
+        </div>
+        <div>
+          <label for="className">班別</label>
+          <input id="className" placeholder="例如：3A">
+        </div>
+        <div>
+          <label for="studentId">學號</label>
+          <input id="studentId" inputmode="numeric" placeholder="例如：12">
+        </div>
+      </div>
+
+      <h3>四、我的猜想</h3>
+      <p class="small">試玩只是少數幾局，結果可能很隨機。想一想：如果擲<strong>很多很多局</strong>，哪座塔最後會最高？</p>
+      <label for="guess">我猜最後最高的塔是：</label>
+      <select id="guess">
+        <option value="">請選擇 2 至 12</option>
+      </select>
+
+      <label for="reason">原因</label>
+      <textarea id="reason" placeholder="提示：想一想有多少種擲法可以得到這個總和。例如總和 2 只有「1 + 1」一種擲法。"></textarea>
+
+      <p class="tip">把同樣的猜想和原因寫在<strong>工作紙步驟 1</strong>。保存第一輪結果後，猜想便不能再更改。</p>
+
+      <div class="error" id="e1"></div>
+      <div class="actions">
+        <span></span>
+        <button type="button" onclick="go2()">下一步</button>
+      </div>
+    </section>
+
+    <!-- 步驟二 -->
+    <section class="card step" data-s="2">
+      <h2>步驟 2：選擇模擬次數</h2>
+
+      <div class="howto">
+        <strong>怎樣做</strong>
+        <ol>
+          <li>模擬次數＝擲骰的局數＝放上積木的總數，也就是這一輪的<strong>樣本大小</strong>。</li>
+          <li>最少完成兩輪：第一輪選<strong>較小</strong>的次數（10 或 30），第二輪選<strong>較大</strong>的次數（300 或 1,000）。</li>
+          <li>先在<strong>工作紙步驟 2</strong>圈出你選的次數和你對塔形的預測，再按「開始模擬」。</li>
+        </ol>
+      </div>
+
+      <label for="trials">這一輪的模擬次數</label>
+      <select id="trials">
+        <option value="10">10 局</option>
+        <option value="30">30 局</option>
+        <option value="100" selected>100 局</option>
+        <option value="300">300 局</option>
+        <option value="1000">1,000 局</option>
+      </select>
+
+      <label for="shapeGuess">我預測這一輪的塔形會：</label>
+      <select id="shapeGuess">
+        <option value="">請選擇</option>
+        <option value="參差">高低很參差，看不出規律</option>
+        <option value="有規律">大致有規律（例如中間高、兩邊低）</option>
+      </select>
+
+      <div class="dice">
+        <div class="die" id="d1">?</div>
+        <div class="plus">+</div>
+        <div class="die" id="d2">?</div>
+        <div class="plus">=</div>
+        <div class="sumbox" id="dsum">?</div>
+      </div>
+      <p class="status" id="status">尚未開始</p>
+
+      <div class="towers" id="liveTowers"></div>
+      <div class="labels" id="liveLabels"></div>
+
+      <div class="error" id="e2"></div>
+      <div class="actions">
+        <button type="button" class="secondary" onclick="backToStep1()">上一步</button>
+        <button type="button" id="run" onclick="simulate()">開始模擬</button>
+      </div>
+    </section>
+
+    <!-- 步驟三 -->
+    <section class="card step" data-s="3">
+      <h2>步驟 3：觀察這一輪</h2>
+
+      <p id="resultText" class="tip"></p>
+      <p id="guessResult" class="tip"></p>
+
+      <div class="towers" id="chart"></div>
+      <div class="labels" id="chartLabels"></div>
+      <p class="legend">
+        <span style="background:#277da1"></span>其他塔
+        <span style="background:#26845b;margin-left:12px"></span>你猜的塔
+        <span style="background:#fff;border:3px solid #f2b84b;margin-left:12px"></span>最高的塔
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr id="heads"></tr></thead>
+          <tbody>
+            <tr id="counts"></tr>
+            <tr id="percents"></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ws">
+        <strong>抄到工作紙步驟 3</strong>（照抄以下四個數值）
+        <table>
+          <thead>
+            <tr><th>模擬次數</th><th>最高的塔</th><th id="wsGuessHead">我猜的塔所佔比例</th><th>與理論分布的差距</th></tr>
+          </thead>
+          <tbody>
+            <tr id="wsRow"></tr>
+          </tbody>
+        </table>
+        <p class="small" style="margin:8px 0 0">「與理論分布的差距」：如果擲骰無限多局，每座塔應有一個固定的高度比例，稱為理論分布。
+          這個數值越小，代表這一輪的塔形越接近理論分布。</p>
+      </div>
+
+      <label for="observation">我的觀察（寫一至兩句）</label>
+      <textarea id="observation" placeholder="最高的是＿號塔。我猜的＿號塔佔＿%，與我的猜想相符／不符。塔形看來……"></textarea>
+      <p class="starter">句式提示：「最高的是＿號塔，我猜的＿號塔佔＿%。整體塔形看來（參差／大致有規律），因為……」</p>
+
+      <div class="error" id="e3"></div>
+      <div class="actions">
+        <button type="button" class="secondary" onclick="show(2)">重新選擇次數</button>
+        <button type="button" onclick="saveRound()">保存這一輪</button>
+      </div>
+    </section>
+
+    <!-- 步驟四 -->
+    <section class="card step" data-s="4">
+      <h2>步驟 4：比較不同樣本</h2>
+
+      <div class="howto">
+        <strong>怎樣做</strong>
+        <ol>
+          <li>每一輪的結果都已保留在下表，並按模擬次數由小至大排列。</li>
+          <li>比較小樣本和大樣本：哪一輪的「差距」較小？哪一輪的塔形較接近「中間高、兩邊低」？</li>
+          <li>最少完成兩輪不同的模擬次數，然後回答<strong>工作紙步驟 4</strong>。</li>
+        </ol>
+      </div>
+
+      <div class="table-wrap">
+        <table class="history">
+          <thead>
+            <tr>
+              <th>輪次</th>
+              <th>模擬次數</th>
+              <th>最高的塔</th>
+              <th id="guessPropHeading">我猜的塔所佔比例</th>
+              <th>與理論分布的差距</th>
+            </tr>
+          </thead>
+          <tbody id="history"></tbody>
+        </table>
+      </div>
+
+      <h3>每一輪的塔形</h3>
+      <div class="mini-wrap" id="minis"></div>
+
+      <label for="conclusion">我的結論</label>
+      <textarea id="conclusion" placeholder="當模擬次數由＿增加至＿時，我發現……因此，較大的樣本（通常能／未必能）……"></textarea>
+      <p class="starter">先在工作紙步驟 5 寫好結論，再抄到這裏。</p>
+
+      <div class="error" id="e4"></div>
+      <div class="actions">
+        <button type="button" class="secondary" onclick="show(2)">再做一輪</button>
+        <button type="button" class="green" onclick="submitData()">送交全班結果</button>
+      </div>
+    </section>
+
+    <!-- 步驟五 -->
+    <section class="card step" data-s="5">
+      <h2>步驟 5：完成</h2>
+      <div class="success" id="sent">正在送出……</div>
+      <p>上課時，老師會把全班所有輪次的積木合併成一幅大圖。想一想：為甚麼某一座塔總是最高？你能找出所有能擲出這個總和的方法嗎？</p>
+      <div class="actions">
+        <button type="button" class="secondary" onclick="resetAll()">開始新的實驗</button>
+        <button type="button" onclick="window.print()">列印</button>
+      </div>
+    </section>
+
+    <!-- 教師設定 -->
+    <details class="card">
+      <summary><strong>教師設定</strong></summary>
+      <p class="small">Google Sheet 收集網址已由老師預設。如重新部署 Apps Script，可在此更新；網址會儲存在這部裝置的瀏覽器內。</p>
+      <label for="endpoint">Apps Script Web App URL</label>
+      <input id="endpoint" placeholder="https://script.google.com/macros/s/.../exec">
+      <button type="button" style="margin-top:10px" onclick="saveEndpoint()">儲存網址</button>
+      <p class="small" id="epStatus"></p>
+    </details>
+  </main>
+
+  <script>
+    const sums = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const theoretical = [1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1].map(x => x / 36);
+
+    // 預設收集網址（與原有 Google Sheet「雙骰賽馬全班結果」相同）
+    const DEFAULT_ENDPOINT =
+      'https://script.google.com/macros/s/' +
+      'AKfycbw-4a-yL7A-d_oeAzQA57JSpYsGdI-' +
+      'AusxDh0b3HIwQOZtOdzqXDkRDkqwH2P7Yq90/exec';
+
+    const STORE_KEY = 'towerStudy';
+    const EP_KEY = 'towerEndpoint';
+
+    let freq = {};
+    let rounds = [];
+    sums.forEach(s => { freq[s] = 0; });
+
+    const $ = id => document.getElementById(id);
+    const student = $('student'), className = $('className'), studentId = $('studentId');
+    const guess = $('guess'), reason = $('reason'), trials = $('trials'), shapeGuess = $('shapeGuess');
+    const observation = $('observation'), conclusion = $('conclusion');
+    const d1 = $('d1'), d2 = $('d2'), dsum = $('dsum'), status = $('status'), run = $('run');
+    const liveTowers = $('liveTowers'), liveLabels = $('liveLabels');
+    const chart = $('chart'), chartLabels = $('chartLabels');
+    const heads = $('heads'), counts = $('counts'), percents = $('percents');
+    const resultText = $('resultText'), guessResult = $('guessResult');
+    const wsRow = $('wsRow'), wsGuessHead = $('wsGuessHead');
+    const history = $('history'), minis = $('minis'), guessPropHeading = $('guessPropHeading');
+    const endpoint = $('endpoint'), epStatus = $('epStatus');
+    const e1 = $('e1'), e2 = $('e2'), e3 = $('e3'), e4 = $('e4'), sent = $('sent');
+    const bar = $('bar'), pt = $('pt');
+
+    sums.forEach(s => {
+      guess.insertAdjacentHTML('beforeend', `<option value="${s}">${s} 號塔（總和 ${s}）</option>`);
+    });
+    heads.innerHTML = '<th>塔號（總和）</th>' + sums.map(s => `<th>${s}</th>`).join('');
+
+    // ---------- 塔形圖 ----------
+    function buildTowers(container, labelBox) {
+      container.innerHTML = sums.map(s => `
+        <div class="tower" data-sum="${s}">
+          <div class="val"></div>
+          <div class="stack" style="height:2px"></div>
+        </div>`).join('');
+      labelBox.innerHTML = sums.map(s => `<div data-sum="${s}">${s}</div>`).join('');
+    }
+
+    function paintTowers(container, labelBox, frequency, n, options = {}) {
+      const g = Number(guess.value);
+      const maxCount = Math.max(...sums.map(s => frequency[s] || 0));
+      const showPercent = options.percent !== false;
+      container.querySelectorAll('.tower').forEach(t => {
+        const s = Number(t.dataset.sum);
+        const c = frequency[s] || 0;
+        const h = maxCount > 0 ? Math.max(2, Math.round(170 * c / maxCount)) : 2;
+        const usable = container.clientHeight ? container.clientHeight - 28 : 170;
+        const hh = maxCount > 0 ? Math.max(2, Math.round(usable * c / maxCount)) : 2;
+        t.querySelector('.stack').style.height = `${container.clientHeight ? hh : h}px`;
+        t.classList.toggle('guess', s === g);
+        t.classList.toggle('top', c > 0 && c === maxCount);
+        const val = t.querySelector('.val');
+        if (!showPercent) { val.textContent = ''; }
+        else if (n > 0) { val.textContent = n <= 30 ? `${c}` : `${(100 * c / n).toFixed(0)}%`; }
+        else { val.textContent = ''; }
+      });
+      labelBox.querySelectorAll('div').forEach(l => {
+        l.classList.toggle('guess', Number(l.dataset.sum) === g);
+      });
+    }
+
+    buildTowers(liveTowers, liveLabels);
+    buildTowers(chart, chartLabels);
+
+    // ---------- 流程 ----------
+    const names = ['規則、試玩與猜想', '選擇模擬次數', '觀察這一輪', '比較不同樣本', '完成'];
+
+    function show(stepNumber) {
+      document.querySelectorAll('.step').forEach(section => {
+        section.classList.toggle('active', Number(section.dataset.s) === Number(stepNumber));
+      });
+      bar.style.width = `${Math.min(Number(stepNumber), 5) * 20}%`;
+      pt.textContent = `步驟 ${stepNumber}／5：${names[stepNumber - 1]}`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (Number(stepNumber) === 3) requestAnimationFrame(() => paintTowers(chart, chartLabels, freq, lastN));
+      if (Number(stepNumber) === 4) requestAnimationFrame(drawHistory);
+      store();
+    }
+
+    function go2() {
+      if (!student.value.trim() || !className.value.trim() || !studentId.value.trim() || !guess.value || !reason.value.trim()) {
+        e1.textContent = '請填寫姓名、班別、學號、猜想及原因。';
+        return;
+      }
+      e1.textContent = '';
+      updateGuessHeadings();
+      show(2);
+    }
+
+    function updateGuessHeadings() {
+      const g = guess.value;
+      if (!g) return;
+      guessPropHeading.textContent = `我猜的 ${g} 號塔所佔比例`;
+      wsGuessHead.textContent = `我猜的 ${g} 號塔所佔比例`;
+    }
+
+    function backToStep1() {
+      if (rounds.length > 0) {
+        alert('你已經保存了實驗結果，因此不能更改猜想。如要更改猜想，請在步驟 5 按「開始新的實驗」。');
+        return;
+      }
+      show(1);
+    }
+
+    let lastN = 0;
+
+    function rollDie() { return 1 + Math.floor(Math.random() * 6); }
+
+    // ---------- 步驟 1 試玩 ----------
+    const PIPS = {
+      1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8]
+    };
+    const pd1 = $('pd1'), pd2 = $('pd2'), pdsum = $('pdsum'), pstatus = $('pstatus');
+    const pBlocks = $('pBlocks'), pLabels = $('pLabels'), pRoll = $('pRoll'), pAuto = $('pAuto'), pHint = $('pHint');
+    const DEMO_MAX = 10;
+    let pFreq = {}, pCount = 0, pBusy = false;
+
+    function drawFace(el, n) {
+      el.innerHTML = Array.from({ length: 9 }, (_, i) =>
+        `<i class="${n && PIPS[n].includes(i) ? 'on' : ''}"></i>`).join('');
+    }
+
+    function practiceReset() {
+      pFreq = {}; sums.forEach(s => { pFreq[s] = 0; });
+      pCount = 0; pBusy = false;
+      drawFace(pd1, 0); drawFace(pd2, 0); pdsum.textContent = '?';
+      pstatus.textContent = '還未擲骰，按下面的按鈕開始。';
+      pHint.textContent = '';
+      pRoll.disabled = false; pAuto.disabled = false;
+      pBlocks.innerHTML = sums.map(s => `<div class="col" data-sum="${s}"><div class="cnt"></div></div>`).join('');
+      pLabels.innerHTML = sums.map(s => `<div>${s}</div>`).join('');
+    }
+
+    function practiceAdd(a, b) {
+      const s = a + b;
+      pFreq[s] += 1; pCount += 1;
+      pBlocks.querySelectorAll('.blk.new').forEach(x => x.classList.remove('new'));
+      const col = pBlocks.querySelector(`.col[data-sum="${s}"]`);
+      col.insertAdjacentHTML('beforeend', '<div class="blk new"></div>');
+      col.querySelector('.cnt').textContent = pFreq[s];
+      drawFace(pd1, a); drawFace(pd2, b); pdsum.textContent = s;
+      pstatus.textContent = `第 ${pCount} 局：${a} + ${b} = ${s}，在 ${s} 號塔放一塊積木。`;
+      const maxC = Math.max(...sums.map(k => pFreq[k]));
+      const tops = sums.filter(k => pFreq[k] === maxC);
+      if (pCount >= 5) {
+        pHint.textContent = `已擲 ${pCount} 局，目前最高的是 ${tops.join('、')} 號塔（${maxC} 塊）。`;
+      }
+      if (maxC >= DEMO_MAX) {
+        pstatus.textContent += ' 有塔已疊滿！';
+        pHint.textContent += ' 試玩結束，按「重設」可以再玩一次，或往下填寫你的猜想。';
+        pRoll.disabled = true; pAuto.disabled = true;
+        return false;
+      }
+      return true;
+    }
+
+    function practiceRoll() {
+      if (pBusy || pRoll.disabled) return;
+      pBusy = true;
+      pd1.classList.add('rolling'); pd2.classList.add('rolling');
+      setTimeout(() => {
+        pd1.classList.remove('rolling'); pd2.classList.remove('rolling');
+        practiceAdd(rollDie(), rollDie());
+        pBusy = false;
+      }, 320);
+    }
+
+    function practiceAuto() {
+      if (pBusy || pAuto.disabled) return;
+      pBusy = true; pRoll.disabled = true; pAuto.disabled = true;
+      let left = 10;
+      const tick = () => {
+        const ok = practiceAdd(rollDie(), rollDie());
+        left -= 1;
+        if (ok && left > 0) { setTimeout(tick, 220); }
+        else {
+          pBusy = false;
+          if (ok) { pRoll.disabled = false; pAuto.disabled = false; }
+        }
+      };
+      tick();
+    }
+
+    practiceReset();
+    drawFace($('ex1'), 3); drawFace($('ex2'), 5);
+
+    function simulate() {
+      if (!shapeGuess.value) {
+        e2.textContent = '請先選擇你對這一輪塔形的預測。';
+        return;
+      }
+      e2.textContent = '';
+      const n = Number(trials.value);
+      sums.forEach(s => { freq[s] = 0; });
+      run.disabled = true;
+      trials.disabled = true;
+      shapeGuess.disabled = true;
+
+      // 動畫：每 90 毫秒顯示一局；局數多時每一拍處理多局。
+      const beats = Math.min(n, 24);
+      const perBeat = Math.ceil(n / beats);
+      let done = 0;
+
+      paintTowers(liveTowers, liveLabels, freq, 0);
+      const timer = setInterval(() => {
+        const batch = Math.min(perBeat, n - done);
+        let a = 1, b = 1;
+        for (let i = 0; i < batch; i++) {
+          a = rollDie(); b = rollDie();
+          freq[a + b]++;
+        }
+        done += batch;
+        d1.textContent = a; d2.textContent = b; dsum.textContent = a + b;
+        status.textContent = `已擲 ${done.toLocaleString()}／${n.toLocaleString()} 局……`;
+        paintTowers(liveTowers, liveLabels, freq, done, { percent: done <= 30 });
+
+        if (done >= n) {
+          clearInterval(timer);
+          lastN = n;
+          status.textContent = `已完成 ${n.toLocaleString()} 局`;
+          render(n);
+          run.disabled = false;
+          trials.disabled = false;
+          shapeGuess.disabled = false;
+          show(3);
+        }
+      }, 90);
+    }
+
+    function topSums(frequency) {
+      const m = Math.max(...sums.map(s => frequency[s] || 0));
+      return sums.filter(s => (frequency[s] || 0) === m);
+    }
+
+    function render(n) {
+      const tops = topSums(freq);
+      const g = Number(guess.value);
+      const gc = Number(freq[g] || 0);
+      const gp = gc / n;
+      const dist = distance(n, freq);
+
+      resultText.textContent =
+        `完成 ${n.toLocaleString()} 局。最高的塔是 ${tops.join('、')} 號` +
+        (tops.length > 1 ? '（並列）。' : '。') +
+        ` 你預測塔形會「${shapeGuess.value}」，看看下圖是否如此。`;
+      guessResult.textContent =
+        `你猜的是 ${g} 號塔：共 ${gc} 塊積木，佔全部 ${n.toLocaleString()} 塊的 ${(gp * 100).toFixed(1)}%。` +
+        (tops.includes(g) ? ' 這一輪你的猜想正確。' : ' 這一輪最高的不是你猜的塔。');
+
+      counts.innerHTML = '<th>積木數</th>' + sums.map(s => {
+        const cls = [];
+        if (tops.includes(s)) cls.push('high');
+        if (s === g) cls.push('guessed');
+        return `<td class="${cls.join(' ')}">${freq[s]}</td>`;
+      }).join('');
+      percents.innerHTML = '<th>所佔比例</th>' + sums.map(s =>
+        `<td class="${s === g ? 'guessed' : ''}">${(100 * freq[s] / n).toFixed(1)}%</td>`).join('');
+
+      wsRow.innerHTML =
+        `<td><strong>${n.toLocaleString()}</strong></td>` +
+        `<td><strong>${tops.join('、')} 號</strong></td>` +
+        `<td><strong>${(gp * 100).toFixed(1)}%</strong></td>` +
+        `<td><strong>${(dist * 100).toFixed(1)}%</strong></td>`;
+
+      paintTowers(chart, chartLabels, freq, n);
+    }
+
+    function distance(n, frequency) {
+      return sums.reduce((total, s, i) => total + Math.abs((Number(frequency[s] || 0) / n) - theoretical[i]), 0) / 2;
+    }
+
+    function getGuessProportion(round) {
+      const g = Number(round.guessedSum || guess.value);
+      const n = Number(round.trials);
+      if (!n || !round.frequency || g < 2 || g > 12) return 0;
+      return Number(round.frequency[g] || 0) / n;
+    }
+
+    function saveRound() {
+      if (!observation.value.trim()) {
+        e3.textContent = '請先在「我的觀察」寫下這一輪的發現。';
+        return;
+      }
+      e3.textContent = '';
+      const n = Number(trials.value);
+      const g = Number(guess.value);
+      rounds.push({
+        trials: n,
+        frequency: { ...freq },
+        top: topSums(freq).join(', '),
+        guessedSum: g,
+        guessProportion: Number(freq[g] || 0) / n,
+        distance: distance(n, freq),
+        shapeGuess: shapeGuess.value,
+        observation: observation.value.trim()
+      });
+      rounds.sort((a, b) => a.trials - b.trials);
+      guess.disabled = true;   // 保存第一輪後鎖定猜想
+      observation.value = '';
+      shapeGuess.value = '';
+      drawHistory();
+      store();
+      show(4);
+    }
+
+    function drawHistory() {
+      updateGuessHeadings();
+      if (!rounds.length) { history.innerHTML = ''; minis.innerHTML = ''; return; }
+      const g = Number(guess.value);
+      history.innerHTML = rounds.map((r, i) => `
+        <tr>
+          <td>第 ${i + 1} 輪</td>
+          <td>${Number(r.trials).toLocaleString()}</td>
+          <td>${String(r.top).replace(/, /g, '、')} 號</td>
+          <td>${(100 * getGuessProportion(r)).toFixed(1)}%</td>
+          <td>${(100 * Number(r.distance)).toFixed(1)}%</td>
+        </tr>`).join('');
+
+      minis.innerHTML = rounds.map((r, i) => `
+        <div class="mini">
+          <h4>第 ${i + 1} 輪：${Number(r.trials).toLocaleString()} 局</h4>
+          <div class="towers" id="mini-t-${i}"></div>
+          <div class="labels" id="mini-l-${i}"></div>
+        </div>`).join('');
+      rounds.forEach((r, i) => {
+        const t = $(`mini-t-${i}`), l = $(`mini-l-${i}`);
+        buildTowers(t, l);
+        requestAnimationFrame(() => paintTowers(t, l, r.frequency, Number(r.trials), { percent: false }));
+      });
+    }
+
+    async function submitData() {
+      if (rounds.length < 2) {
+        e4.textContent = '請先完成最少兩輪不同模擬次數的實驗。';
+        return;
+      }
+      if (new Set(rounds.map(r => Number(r.trials))).size < 2) {
+        e4.textContent = '兩輪的模擬次數相同。請再做一輪不同的模擬次數。';
+        return;
+      }
+      if (!conclusion.value.trim()) {
+        e4.textContent = '請先寫下你的結論。';
+        return;
+      }
+      const url = endpoint.value.trim() || localStorage.getItem(EP_KEY) || localStorage.getItem('diceEndpoint') || DEFAULT_ENDPOINT;
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)) {
+        e4.textContent = 'Apps Script 網址不正確，請老師檢查教師設定。';
+        return;
+      }
+      e4.textContent = '';
+      show(5);
+      sent.textContent = '正在送出……';
+
+      // 欄位名稱與原有 Apps Script 相同；studentId 與 shapeGuess 為新增欄位。
+      const payload = {
+        student: student.value.trim(),
+        className: className.value.trim(),
+        studentId: studentId.value.trim(),
+        guess: Number(guess.value),
+        reason: reason.value.trim(),
+        conclusion: conclusion.value.trim(),
+        rounds: rounds
+      };
+
+      try {
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        sent.textContent = '已送出資料。請完成工作紙的「送交前檢查」。';
+        localStorage.removeItem(STORE_KEY);
+      } catch (error) {
+        console.error(error);
+        sent.textContent = '未能送出資料。請檢查網絡連線，或請老師檢查 Apps Script 網址。';
+      }
+    }
+
+    function saveEndpoint() {
+      const url = endpoint.value.trim();
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)) {
+        epStatus.textContent = '網址格式不正確，網址應以 /exec 結尾。';
+        return;
+      }
+      localStorage.setItem(EP_KEY, url);
+      epStatus.textContent = 'Google Sheet 收集網址已儲存。';
+    }
+
+    function store() {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        student: student.value, className: className.value, studentId: studentId.value,
+        guess: guess.value, reason: reason.value, rounds, conclusion: conclusion.value
+      }));
+    }
+
+    function restore() {
+      endpoint.value = localStorage.getItem(EP_KEY) || localStorage.getItem('diceEndpoint') || DEFAULT_ENDPOINT;
+      try {
+        const saved = localStorage.getItem(STORE_KEY);
+        if (!saved) return;
+        const data = JSON.parse(saved);
+        student.value = data.student || '';
+        className.value = data.className || '';
+        studentId.value = data.studentId || '';
+        guess.value = data.guess || '';
+        reason.value = data.reason || '';
+        conclusion.value = data.conclusion || '';
+        rounds = Array.isArray(data.rounds) ? data.rounds : [];
+        rounds.forEach(r => {
+          r.guessedSum = Number(guess.value);
+          r.guessProportion = getGuessProportion(r);
+        });
+        if (rounds.length > 0) guess.disabled = true;
+        updateGuessHeadings();
+        drawHistory();
+      } catch (error) {
+        console.error('無法載入先前保存的實驗：', error);
+        localStorage.removeItem(STORE_KEY);
+      }
+    }
+
+    function resetAll() {
+      if (!confirm('確定要清除目前資料並開始新的實驗嗎？')) return;
+      localStorage.removeItem(STORE_KEY);
+      location.reload();
+    }
+
+    document.querySelectorAll('input, textarea, select').forEach(el => {
+      el.addEventListener('input', store);
+      el.addEventListener('change', store);
+    });
+
+    restore();
+  </script>
+</body>
+</html>
